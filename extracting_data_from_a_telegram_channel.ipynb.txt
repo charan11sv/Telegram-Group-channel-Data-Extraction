@@ -1,0 +1,124 @@
+from telethon import TelegramClient
+
+import pandas as pd
+
+import asyncio
+
+import configparser
+
+
+# Reading Configs
+config = configparser.ConfigParser()
+config.read("config.ini")
+
+# Setting configuration values
+api_id = config['Telegram']['api_id']
+api_hash = config['Telegram']['api_hash']
+
+api_hash = str(api_hash)
+
+phone = config['Telegram']['phone']
+username = config['Telegram']['username']
+# Create the client and connect
+client = await TelegramClient('username22', api_id, api_hash).start()
+print("Client Created")
+# Ensure you're authorized
+v= await client.is_user_authorized()
+if not v:
+    client.send_code_request(phone)
+    try:
+        client.sign_in(phone, input('Enter the code: '))
+    except SessionPasswordNeededError:
+        client.sign_in(password=input('Password: '))
+#below code gives the list of participants
+channel_username='t.me/mytestgroupA'
+
+participants = await client.get_participants(channel_username)
+
+firstname =[]
+
+lastname = []
+
+username = []
+
+if len(participants):
+    
+    for x in participants:
+        
+        firstname.append(x.first_name)
+        
+        lastname.append(x.last_name)
+        
+        username.append(x.username)
+        
+data ={'first_name' :firstname, 'last_name':lastname, 'user_name':username}
+
+df_user = pd.DataFrame(data)
+
+display(df_user)
+#for displaying latest 50 messages
+n=50
+
+chats = await client.get_messages(channel_username, n) # n = Number of messages to be extracted
+
+message_id = []
+
+message = []
+
+sender = []
+
+reply_to = []
+
+time = []
+
+if len(chats):
+    
+    for chat in chats:
+        
+        message_id.append(chat.id)
+        
+        message.append(chat.message)
+        
+        sender.append(chat.from_id)
+        
+        reply_to.append(chat.reply_to_msg_id)
+        
+        time.append(chat.date)
+        
+data ={'message_id':message_id, 'message': message, 'sender_ID':sender, 'reply_to_msg_id':reply_to, 'time':time}
+
+df = pd.DataFrame(data)
+
+display(df)
+#for displaying messages with specific keywords
+messages = df.sort_index(ascending= False)
+
+messages =[]
+
+time = []
+
+async for message in client.iter_messages(channel_username, search='netflix'):
+    
+    messages.append(message.message)
+    
+    time.append(message.date)
+    
+data ={'time':time, 'message':messages}
+
+
+df = pd.DataFrame(data)
+
+display(df)
+#for storing data in a json file
+import json
+all_user_details = []
+for x in participants:
+    all_user_details.append(
+        {"id": x.id, "first_name": x.first_name, "last_name": x.last_name,
+         "user": x.username, "phone": x.phone, "is_bot": x.bot})
+
+with open('user_data.json', 'w') as outfile:
+    json.dump(all_user_details, outfile)
+#for sending a message
+message='-----this message was sent using telethon-----'
+await client.send_message('t.me/mytestgroupA', message=message)
